@@ -1,4 +1,4 @@
-name: "Build Release"
+name: Build Release
 
 on:
   push:
@@ -7,25 +7,28 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
+  build-release:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Create SDK zip archive
+      - name: Crear zip solo con contenido de carpeta1
         run: |
-          zip -r prueba1.zip carpeta1
+          mkdir release-content
+          cp carpeta1/* release-content/
+          zip -r prueba.zip release-content
 
-       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  
-        
-      - name: Create GitHub Release
-        uses: ncipollo/release-action@v1
-        with:
-          tag: v1.0.${{ github.run_number }}
-          name: Release v1.0.${{ github.run_number }}
-          body: "Release automática número ${{ github.run_number }}"
-          artifacts: prueba1.zip
-          draft: false
-          prerelease: false
+      - name: Instalar GitHub CLI
+        run: |
+          sudo apt update
+          sudo apt install -y gh
+
+      - name: Crear Release con gh CLI
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create 1.0.${{ github.run_number }} prueba.zip \
+            --target ${{ github.sha }} \
+            -t "Prueba 1" \
+            -n "Release de prueba 1 generado automáticamente (run #${{ github.run_number }})"
