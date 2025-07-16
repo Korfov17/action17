@@ -17,18 +17,13 @@ jobs:
         run: |
           mkdir release-content
           cp carpeta1/* release-content/
-          zip -r prueba.zip release-content
-
-      - name: Instalar GitHub CLI
-        run: |
-          sudo apt update
-          sudo apt install -y gh
+          zip -r prueba-1.0.${{ github.run_number }}.zip release-content
 
       - name: Crear Release con gh CLI
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release create 1.0.${{ github.run_number }} prueba.zip \
+          gh release create 1.0.${{ github.run_number }} prueba-1.0.${{ github.run_number }}.zip \
             --target ${{ github.sha }} \
-            -t "Prueba 1" \
+            -t "Prueba 1 1.0.${{ github.run_number }}" \
             -n "Release de prueba 1 generado automáticamente (run #${{ github.run_number }})"
