@@ -3,35 +3,52 @@ name: Release from Commit
 on:
   push:
     branches:
-      - main
+      - main  # o tu rama principal
 
 jobs:
-  generate-version:
+  release:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout repo
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Get last commit message
+      - name: Get first line of last commit
         id: get_commit
         run: |
-          COMMIT_MSG=$(git log -1 --pretty=%B)
-          echo "Commit: $COMMIT_MSG"
-          echo "commit_msg=$COMMIT_MSG" >> $GITHUB_OUTPUT
+          FIRST_LINE=$(git log -1 --pretty=%B | head -n 1)
+          echo "First commit line: $FIRST_LINE"
+          echo "commit_msg=$FIRST_LINE" >> $GITHUB_OUTPUT
 
       - name: Extract version from commit message
         id: extract_version
         run: |
-          VERSION_BASE=$(echo "${{ steps.get_commit.outputs.commit_msg }}" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')
+          VERSION_BASE=$(echo "${{ steps.get_commit.outputs.commit_msg }}" | grep -oE '^[0-9]+\.[0-9]+\.[0-9]+')
           if [ -z "$VERSION_BASE" ]; then
-            echo "❌ No se encontró una versión en el commit. Usa formato como: release: 1.2.3"
+            echo "❌ No se encontró una versión válida en la primera línea del commit. Usa formato: 1.2.3"
             exit 1
           fi
           FULL_VERSION="$VERSION_BASE.${{ github.run_number }}"
-          echo "✅ Versión compuesta: $FULL_VERSION"
+          echo "✅ Versión final: $FULL_VERSION"
           echo "version=$FULL_VERSION" >> $GITHUB_OUTPUT
 
-      - name: Create tag and release
+      - name: Check if tag already exists
+        run: |
+          TAG="v${{ steps.extract_version.outputs.version }}"
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "❌ Tag $TAG ya existe. Abortando."
+            exit 1
+          fi
+
+      - name: Create Git tag
+        run: |
+          TAG="v${{ steps.extract_version.outputs.version }}"
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git tag "$TAG"
+          git push origin "$TAG"
+
+      - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: "v${{ steps.extract_version.outputs.version }}"
