@@ -1,29 +1,40 @@
-name: Build Release
+name: Release from Commit
 
 on:
   push:
     branches:
       - main
-  workflow_dispatch:
 
 jobs:
-  build-release:
+  generate-version:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
+      - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Crear zip solo con contenido de carpeta1
+      - name: Get last commit message
+        id: get_commit
         run: |
-          mkdir release-content
-          cp carpeta1/* release-content/
-          zip -r prueba-1.0.${{ github.run_number }}.zip release-content
+          COMMIT_MSG=$(git log -1 --pretty=%B)
+          echo "Commit: $COMMIT_MSG"
+          echo "commit_msg=$COMMIT_MSG" >> $GITHUB_OUTPUT
 
-      - name: Crear Release con gh CLI
+      - name: Extract version from commit message
+        id: extract_version
+        run: |
+          VERSION_BASE=$(echo "${{ steps.get_commit.outputs.commit_msg }}" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')
+          if [ -z "$VERSION_BASE" ]; then
+            echo "❌ No se encontró una versión en el commit. Usa formato como: release: 1.2.3"
+            exit 1
+          fi
+          FULL_VERSION="$VERSION_BASE.${{ github.run_number }}"
+          echo "✅ Versión compuesta: $FULL_VERSION"
+          echo "version=$FULL_VERSION" >> $GITHUB_OUTPUT
+
+      - name: Create tag and release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: "v${{ steps.extract_version.outputs.version }}"
+          name: "v${{ steps.extract_version.outputs.version }}"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh release create 1.0.${{ github.run_number }} prueba-1.0.${{ github.run_number }}.zip \
-            --target ${{ github.sha }} \
-            -t "Prueba 1 1.0.${{ github.run_number }}" \
-            -n "Release de prueba 1 generado automáticamente (run #${{ github.run_number }})"
