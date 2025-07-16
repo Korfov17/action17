@@ -17,10 +17,12 @@ jobs:
         run: |
           zip -r prueba1.zip carpeta1
 
+       env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  
+        
       - name: Create GitHub Release
         uses: ncipollo/release-action@v1
         with:
-          token: ${{ secrets.REPO_TOKEN }}
           tag: v1.0.${{ github.run_number }}
           name: Release v1.0.${{ github.run_number }}
           body: "Release automática número ${{ github.run_number }}"
