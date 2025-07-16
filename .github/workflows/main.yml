@@ -1,0 +1,29 @@
+name: "Build Release"
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Create SDK zip archive
+        run: |
+          zip -r prueba1.zip carpeta1
+
+      - name: Create GitHub Release
+        uses: ncipollo/release-action@v1
+        with:
+          tag: v1.0.${{ github.run_number }}
+          name: Release v1.0.${{ github.run_number }}
+          descripción: prueba nueva
+          body: "Release automática número ${{ github.run_number }}"
+          artifacts: prueba1.zip
+          draft: false
+          prerelease: false
