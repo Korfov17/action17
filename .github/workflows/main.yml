@@ -1,4 +1,4 @@
-name: Crear Release desde último commit
+name: Crear Release desde commit con versión
 
 on:
   push:
@@ -13,18 +13,33 @@ jobs:
       - name: Checkout del repositorio
         uses: actions/checkout@v4
 
-      - name: Obtener mensaje del último commit
+      - name: Obtener mensaje del último commit y validar versión
         id: commit
         run: |
           titulo=$(git log -1 --pretty=%s)
           cuerpo=$(git log -1 --pretty=%b)
 
-          # Formatear el cuerpo para que cada línea tenga "- " al inicio
-          cuerpo_formateado=$(echo "$cuerpo" | sed 's/^/- /')
+          # Verificar si el título contiene una versión tipo x.y.z
+          if [[ "$titulo" =~ [0-9]+\.[0-9]+\.[0-9]+ ]]; then
+            version="${BASH_REMATCH[0]}"
+          else
+            echo "No se detectó versión semántica en el commit. Saliendo."
+            echo "crear_release=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Si el cuerpo está vacío, usar mensaje por defecto
+          if [ -z "$cuerpo" ]; then
+            cuerpo_formateado="- [GitHub] Sin Cambios"
+          else
+            cuerpo_formateado=$(echo "$cuerpo" | sed 's/^/- /')
+          fi
 
           titulo_sanitizado=$(echo "$titulo" | tr -d '\n' | sed 's/[^a-zA-Z0-9._-]/_/g')
 
           {
+            echo "crear_release=true"
+            echo "version=$version"
             echo "titulo<<EOF"
             echo "$titulo"
             echo "EOF"
@@ -37,6 +52,7 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: Crear release
+        if: steps.commit.outputs.crear_release == 'true'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.commit.outputs.tag }}
