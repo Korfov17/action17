@@ -3,7 +3,7 @@ name: Crear Release desde último commit
 on:
   push:
     branches:
-      - main  # Cambia esto si usas otra rama principal
+      - main  # Cambia si usas otra rama principal
 
 jobs:
   release:
@@ -18,14 +18,20 @@ jobs:
         run: |
           titulo=$(git log -1 --pretty=%s)
           cuerpo=$(git log -1 --pretty=%b)
+
+          # Formatear el cuerpo para que cada línea tenga "- " al inicio
+          cuerpo_formateado=$(echo "$cuerpo" | sed 's/^/- /')
+
           titulo_sanitizado=$(echo "$titulo" | tr -d '\n' | sed 's/[^a-zA-Z0-9._-]/_/g')
 
           {
             echo "titulo<<EOF"
             echo "$titulo"
             echo "EOF"
-            echo "cuerpo<<EOF"
-            echo "$cuerpo"
+            echo "body<<EOF"
+            echo "## Vault v$titulo"
+            echo ""
+            echo "$cuerpo_formateado"
             echo "EOF"
             echo "tag=Vault_v${titulo_sanitizado}"
           } >> "$GITHUB_OUTPUT"
@@ -35,6 +41,6 @@ jobs:
         with:
           tag_name: ${{ steps.commit.outputs.tag }}
           name: "## Vault v${{ steps.commit.outputs.titulo }}"
-          body: ${{ steps.commit.outputs.cuerpo }}
+          body: ${{ steps.commit.outputs.body }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
