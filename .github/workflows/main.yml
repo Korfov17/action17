@@ -3,7 +3,7 @@ name: Crear Release desde último commit
 on:
   push:
     branches:
-      - main  # Cambia si tu rama principal tiene otro nombre
+      - main  # Cambia esto si usas otra rama principal
 
 jobs:
   release:
@@ -19,16 +19,22 @@ jobs:
           titulo=$(git log -1 --pretty=%s)
           cuerpo=$(git log -1 --pretty=%b)
           titulo_sanitizado=$(echo "$titulo" | tr -d '\n' | sed 's/[^a-zA-Z0-9._-]/_/g')
-          echo "titulo=$titulo" >> "$GITHUB_OUTPUT"
-          echo "cuerpo=$cuerpo" >> "$GITHUB_OUTPUT"
-          echo "tag=Vault_v${titulo_sanitizado}" >> "$GITHUB_OUTPUT"
+
+          {
+            echo "titulo<<EOF"
+            echo "$titulo"
+            echo "EOF"
+            echo "cuerpo<<EOF"
+            echo "$cuerpo"
+            echo "EOF"
+            echo "tag=Vault_v${titulo_sanitizado}"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Crear release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.commit.outputs.tag }}
           name: "## Vault v${{ steps.commit.outputs.titulo }}"
-          body: |
-            ${{ steps.commit.outputs.cuerpo }}
+          body: ${{ steps.commit.outputs.cuerpo }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
