@@ -1,72 +1,34 @@
-name: Build Release
+name: Crear Release desde último commit
 
 on:
   push:
     branches:
-      - main
-  workflow_dispatch:
+      - main  # Cambia si tu rama principal tiene otro nombre
 
 jobs:
-  build-release:
+  release:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
+      - name: Checkout del repositorio
         uses: actions/checkout@v4
 
-      - name: Obtener primera línea del último commit
-        id: get_commit
+      - name: Obtener mensaje del último commit
+        id: commit
         run: |
-          FIRST_LINE=$(git log -1 --pretty=%B | head -n 1)
-          echo "Primera línea del commit: $FIRST_LINE"
-          echo "commit_msg=$FIRST_LINE" >> $GITHUB_OUTPUT
+          titulo=$(git log -1 --pretty=%s)
+          cuerpo=$(git log -1 --pretty=%b)
+          titulo_sanitizado=$(echo "$titulo" | tr -d '\n' | sed 's/[^a-zA-Z0-9._-]/_/g')
+          echo "titulo=$titulo" >> "$GITHUB_OUTPUT"
+          echo "cuerpo=$cuerpo" >> "$GITHUB_OUTPUT"
+          echo "tag=Vault_v${titulo_sanitizado}" >> "$GITHUB_OUTPUT"
 
-      - name: Extraer versión base y componer versión final
-        id: extract_version
-        run: |
-          VERSION_BASE=$(echo "${{ steps.get_commit.outputs.commit_msg }}" | grep -oE '^[0-9]+\.[0-9]+\.[0-9]+')
-          if [ -z "$VERSION_BASE" ]; then
-            echo "❌ No se encontró una versión válida en la primera línea del commit. Usa formato: 1.2.3"
-            exit 1
-          fi
-          FULL_VERSION="${VERSION_BASE}.${{ github.run_number }}"
-          echo "Versión compuesta: $FULL_VERSION"
-          echo "version=$FULL_VERSION" >> $GITHUB_OUTPUT
-
-      - name: Verificar si el tag ya existe
-        run: |
-          TAG="v${{ steps.extract_version.outputs.version }}"
-          if git rev-parse "$TAG" >/dev/null 2>&1; then
-            echo "❌ El tag $TAG ya existe. Abortando."
-            exit 1
-          fi
-
-      - name: Crear el tag Git
-        run: |
-          TAG="v${{ steps.extract_version.outputs.version }}"
-          git config user.name "github-actions"
-          git config user.email "actions@github.com"
-          git tag "$TAG"
-          git push origin "$TAG"
-
-      - name: Crear carpeta zip con carpeta1
-        run: |
-          mkdir release-content
-          cp -r carpeta1/* release-content/
-          zip -r "build-${{ steps.extract_version.outputs.version }}.zip" release-content
-
-      - name: Instalar GitHub CLI
-        run: |
-          sudo apt update
-          sudo apt install -y gh
-
-      - name: Crear GitHub Release con gh CLI
+      - name: Crear release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.commit.outputs.tag }}
+          name: "## Vault v${{ steps.commit.outputs.titulo }}"
+          body: |
+            ${{ steps.commit.outputs.cuerpo }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          TAG="v${{ steps.extract_version.outputs.version }}"
-          ARCHIVO_ZIP="build-${{ steps.extract_version.outputs.version }}.zip"
-          gh release create "$TAG" "$ARCHIVO_ZIP" \
-            --target "${{ github.sha }}" \
-            -t "Release $TAG" \
-            -n "Release generado automáticamente desde commit con versión base.\nRun #${{ github.run_number }}"
